@@ -11,7 +11,11 @@ async function timelapse() {
     folders.forEach(f => {
         if (lstatSync(path.resolve(__dirname, "target", f)).isDirectory()) {
             console.log(f);
-            const files = readdirSync(path.resolve(__dirname, "target", f));
+            const files = readdirSync(path.resolve(__dirname, "target", f))
+                .filter(file => {
+                    const fullPath = path.resolve(__dirname, "target", f, file);
+                    return lstatSync(fullPath).isFile() && file.toLowerCase().endsWith('.png');
+            });
 
             if (files.length > 0) {
 
