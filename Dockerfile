@@ -22,7 +22,7 @@ RUN /usr/local/bin/node-prune
 FROM node:20.10-alpine
 
 # add ffmpeg
-RUN apk add  --no-cache ffmpeg
+RUN apk add  --no-cache ffmpeg tzdata
 
 ENV TOKEN=$TOKEN 
 # ENV CRON_SCHEDULE="*/1 * * * *"
@@ -36,15 +36,16 @@ COPY --from=BUILD_IMAGE /work/dist ./dist
 COPY --from=BUILD_IMAGE /work/node_modules ./node_modules
 COPY --from=BUILD_IMAGE /work/package.json .
 
-# Setup the cron job to 
-RUN echo "$CRON_SCHEDULE cd /app && npm run snapshot" >> /etc/crontabs/root
-RUN echo "$CRON_SCHEDULE_TIMELAPSE cd /app && npm run timelapse" >> /etc/crontabs/root
-
 # Create the cron log
 RUN touch /var/log/cron.log
 
 # Setup our start file
 COPY ./cron/run.sh /tmp/run.sh
 RUN chmod +x /tmp/run.sh 
+
+# Set time zone
+ENV TZ=UTC
+
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 CMD ["/tmp/run.sh"]
