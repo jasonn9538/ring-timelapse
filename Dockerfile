@@ -1,5 +1,14 @@
 FROM node:20.10 AS BUILD_IMAGE
 
+# Install system dependencies required by the canvas package
+RUN apt-get update && apt-get install -y \
+    libcairo2 libcairo2-dev \
+    libjpeg-dev libpango1.0-dev \
+    libgif-dev \
+    python3 python3-pip \
+    build-essential g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 # install node-prune
 RUN curl -sf https://gobinaries.com/tj/node-prune | sh
 

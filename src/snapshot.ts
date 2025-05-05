@@ -1,58 +1,80 @@
-// Copyright (c) Wictor Wilén. All rights reserved. 
+// Copyright (c) Wictor Wilén. All rights reserved.
 // Licensed under the MIT license.
 
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
-import { RingApi } from 'ring-client-api'
-import * as path from 'path'
-import * as dotenv from "dotenv";
-import * as lodash from "lodash";
+import { mkdirSync, existsSync } from 'fs';
+import { RingApi } from 'ring-client-api';
+import * as path from 'path';
+import * as dotenv from 'dotenv';
+import * as lodash from 'lodash';
+import sharp from 'sharp';
+import text2png from 'text2png';
 
 const log = console.log;
 
-
 const snapshot = async (): Promise<void> => {
-    log("running snapshot")
+    log("running snapshot");
+
     const ringApi = new RingApi({
         refreshToken: process.env.TOKEN as string,
-        debug: true // false
+        debug: true
     });
 
     const cameras = await ringApi.getCameras();
 
-    if (!existsSync(path.resolve(__dirname, "target"))) {
-        log("creating target");
-        mkdirSync(path.resolve(__dirname, "target"));
+    const targetBase = path.resolve(__dirname, "target");
+
+    if (!existsSync(targetBase)) {
+        log("creating target directory");
+        mkdirSync(targetBase);
     }
 
     for (const camera of cameras) {
-        // cameras.forEach(async camera => {
         const name = lodash.camelCase(camera.name);
         log(`Retrieving snapshot for ${camera.name}`);
+
         try {
             const result = await camera.getSnapshot();
 
-            log((path.resolve(__dirname, "target", name)));
-            if (!existsSync(path.resolve(__dirname, "target", name))) {
-                mkdirSync(path.resolve(__dirname, "target", name));
+            const camDir = path.resolve(targetBase, name);
+            if (!existsSync(camDir)) {
+                mkdirSync(camDir);
             }
-            writeFileSync(path.resolve(__dirname, "target", path.join(name, Date.now() + '.png')), result, );
-            log(`Snapshot for ${camera.name} saved`);
 
-        }
-        catch (err) {
+            const timestamp = new Date().toLocaleString();
+            const timestampImage = text2png(timestamp, {
+                font: '20px sans-serif',
+                color: 'white',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                padding: 5
+            });
+
+            const outputPath = path.resolve(camDir, `${Date.now()}.png`);
+
+            await sharp(result)
+                .composite([
+                    {
+                        input: timestampImage,
+                        gravity: 'southeast'
+                    }
+                ])
+                .toFile(outputPath);
+
+            log(`Snapshot for ${camera.name} saved with timestamp`);
+        } catch (err) {
             log(`Snapshot error: ${err}`);
         }
-    
-
-    };
-}
+    }
+};
 
 dotenv.config();
 
-snapshot() .then(() => {
-    log("done");
-    process.exit(0);
-})
-.catch(err => {
-    log(err)
-});
+snapshot()
+    .then(() => {
+        log("done");
+        process.exit(0);
+    })
+    .catch(err => {
+        log(err);
+        process.exit(1);
+    });
+
